@@ -2,43 +2,94 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>AuraTask BLE Setup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuraTask Automatic Setup</title>
   <style>
-    body { font-family: sans-serif; max-width: 400px; margin: 40px auto; padding: 20px; }
-    input, button { width: 100%; padding: 10px; margin-top: 10px; box-sizing: border-box; }
-    button { background: #00e5ff; border: none; font-weight: bold; cursor: pointer; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; max-width: 400px; margin: 0 auto; padding: 24px; }
+    h1 { color: #38bdf8; font-size: 24px; margin-bottom: 8px; }
+    p { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+    .card { background: #1e293b; padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #334155; }
+    input, button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; border: none; font-size: 14px; box-sizing: border-box; }
+    input { background: #0f172a; color: #fff; border: 1px solid #475569; }
+    button { background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-notion { background: #ffffff; color: #000; font-weight: 600; margin-bottom: 12px; }
   </style>
 </head>
 <body>
-  <h2>AuraTask OS Setup</h2>
-  <input id="ssid" placeholder="Nombre Wi-Fi (SSID)">
-  <input id="pass" type="password" placeholder="Contraseña Wi-Fi">
-  <input id="token" placeholder="Notion Integration Token">
-  <input id="db_id" placeholder="Notion Database ID">
-  <button onclick="enviarBLE()">Vincular via BLE</button>
+
+  <h1>AuraTask OS</h1>
+  <p>Vincular dispositivo con tu cuenta de Notion y Wi-Fi.</p>
+
+  <div class="card">
+    <label><b>Paso 1: Notion Account</b></label>
+    <button class="btn-notion" id="btnNotion" onclick="loginNotion()">🔗 Conectar con Notion (1-Click)</button>
+    <small id="statusNotion" style="color:#38bdf8;"></small>
+  </div>
+
+  <div class="card">
+    <label><b>Paso 2: Red Wi-Fi</b></label>
+    <input id="ssid" placeholder="Nombre de Wi-Fi (SSID)">
+    <input id="pass" type="password" placeholder="Contraseña Wi-Fi">
+  </div>
+
+  <button id="btnBLE" onclick="sincronizarPorBLE()">⚡ Vincular AuraTask via BLE</button>
 
   <script>
-    async function enviarBLE() {
+    // Parámetros capturados tras el OAuth de Notion
+    let notionToken = "";
+    let notionDbId = "";
+
+    // 1. Detección automática de tokens al regresar de Notion
+    window.onload = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('access_token')) {
+        notionToken = urlParams.get('access_token');
+        notionDbId = urlParams.get('duplicated_template_id') || urlParams.get('database_id');
+
+        document.getElementById('statusNotion').innerText = "✓ Conectado a Notion correctamente";
+        document.getElementById('btnNotion').style.display = "none";
+      }
+    };
+
+    // 2. Redirección OAuth2 con Notion
+    function loginNotion() {
+      const CLIENT_ID = "TU_NOTION_CLIENT_ID"; // ID de tu app registrada en Notion Developers
+      const REDIRECT_URI = encodeURIComponent(window.location.origin + window.location.pathname);
+      window.location.href = `https://api.notion.com/v1/oauth/authorize?client_id=${CLIENT_ID}&response_type=code&owner=user&redirect_uri=${REDIRECT_URI}`;
+    }
+
+    // 3. Envío directo por Web Bluetooth API
+    async function sincronizarPorBLE() {
+      const ssid = document.getElementById('ssid').value;
+      const pass = document.getElementById('pass').value;
+
+      if (!ssid || !pass) {
+        alert("Por favor ingresa tu red Wi-Fi y contraseña.");
+        return;
+      }
+
       try {
         const device = await navigator.bluetooth.requestDevice({
           filters: [{ name: 'AuraTask-OS' }],
           optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
         });
+
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
-        const char = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+        const characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
 
         const payload = JSON.stringify({
-          ssid: document.getElementById('ssid').value,
-          pass: document.getElementById('pass').value,
-          token: document.getElementById('token').value,
-          db_id: document.getElementById('db_id').value
+          ssid: ssid,
+          pass: pass,
+          token: notionToken,
+          db_id: notionDbId
         });
 
-        await char.writeValue(new TextEncoder().encode(payload));
-        alert('::: Vincular AuraTask con éxito! :::');
+        await characteristic.writeValue(new TextEncoder().encode(payload));
+        alert("¡AuraTask vinculado con éxito!");
       } catch (err) {
-        alert('Error BLE: ' + err);
+        alert("Error de conexión BLE: " + err);
       }
     }
   </script>
