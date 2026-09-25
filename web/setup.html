@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>AuraTask BLE Setup</title>
+  <style>
+    body { font-family: sans-serif; max-width: 400px; margin: 40px auto; padding: 20px; }
+    input, button { width: 100%; padding: 10px; margin-top: 10px; box-sizing: border-box; }
+    button { background: #00e5ff; border: none; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>AuraTask OS Setup</h2>
+  <input id="ssid" placeholder="Nombre Wi-Fi (SSID)">
+  <input id="pass" type="password" placeholder="Contraseña Wi-Fi">
+  <input id="token" placeholder="Notion Integration Token">
+  <input id="db_id" placeholder="Notion Database ID">
+  <button onclick="enviarBLE()">Vincular via BLE</button>
+
+  <script>
+    async function enviarBLE() {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ name: 'AuraTask-OS' }],
+          optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+        const char = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+
+        const payload = JSON.stringify({
+          ssid: document.getElementById('ssid').value,
+          pass: document.getElementById('pass').value,
+          token: document.getElementById('token').value,
+          db_id: document.getElementById('db_id').value
+        });
+
+        await char.writeValue(new TextEncoder().encode(payload));
+        alert('::: Vincular AuraTask con éxito! :::');
+      } catch (err) {
+        alert('Error BLE: ' + err);
+      }
+    }
+  </script>
+</body>
+</html>
