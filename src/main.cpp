@@ -142,7 +142,7 @@ void renderizarPantallaSetupBLE() {
     epaper.println("3. Guarda datos");
 
     // QR que apunta a la Web App de vinculación BLE
-    dibujarCodigoQR("https://auratask.app/setup", 185, 38, 2);
+    dibujarCodigoQR("https://github.com/ESB7-ghost/AuraTask_OS", 185, 38, 2);
 
   } while (epaper.nextPage());
 
@@ -156,7 +156,6 @@ class BLECallbacks: public BLECharacteristicCallbacks {
 
       if (jsonRx.length() > 0) {
         Serial.println("::: Datos recibidos via BLE :::");
-        Serial.println(jsonRx);
 
         DynamicJsonDocument doc(1024);
         DeserializationError error = deserializeJson(doc, jsonRx);
